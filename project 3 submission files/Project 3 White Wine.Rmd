@@ -1,0 +1,1088 @@
+White Wine Quality by John Gritch
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library('ggplot2')
+library('gridExtra')
+library('dplyr')
+library('GGally')
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+setwd('~/Documents/NanoDegree/Data-Analysis-With-R')
+ww <- read.csv('wineQualityWhites.csv')
+```
+
+```{r echo=FALSE, Create_Variables}
+#create ordered factor variable from quality
+ww$quality.ordfactor <- factor(ww$quality, ordered=TRUE)
+
+#create variable for free SO2 / total SO2
+ww$SO2.portion.free <- ww$free.sulfur.dioxide / ww$total.sulfur.dioxide
+
+#cutting pH into bins
+ww$pH.bucket <- cut(ww$pH, 
+                    c(2.7, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.9))
+
+#bin quality.ordfactor into 3 bins
+ww$quality.bucket <- cut(ww$quality,
+                                   c(2,5,6,9))
+
+#bin selected values of residual sugar
+ww$residual.sugar.bucket.full <- cut(ww$residual.sugar, 
+                                c(0,1,2,3,6,9,18,24,60))
+
+#bin selected values of residual sugar
+ww$residual.sugar.bucket1 <- cut(ww$residual.sugar, 
+                                c(4,5,6,7,8,9,10,11,12))
+
+#bin selected values of residual sugar
+ww$residual.sugar.bucket2 <- cut(ww$residual.sugar, 
+                                c(0,1,2,3,4))
+
+#low residual sugar dataframe
+ww.low.sugar <- subset(ww, ww$residual.sugar <= 5.2)
+
+#high residual sugar dataframe
+ww.high.sugar <- subset(ww, ww$residual.sugar > 5.2)
+
+```
+
+# Univariate Plots Section
+###Quick Overview
+```{r echo=FALSE, warning=FALSE, Univariate_Plots_overview}
+#general overview of the data
+pu2 <- ggplot(aes(x = fixed.acidity), data = ww) +
+  geom_histogram(binwidth = .25) + 
+  scale_x_continuous(breaks = seq(0, 15, 1))
+
+pu3 <- ggplot(aes(x = volatile.acidity), data = ww) +
+  geom_histogram(binwidth = .01)
+
+pu4 <- ggplot(aes(x = citric.acid), data = ww) +
+  geom_histogram(binwidth = .01)
+
+pu5 <- ggplot(aes(x = residual.sugar), data = ww) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = seq(0, 70, 10))
+
+pu6 <- ggplot(aes(x = chlorides), data = ww) +
+  geom_histogram(binwidth = .0025)
+
+pu7 <- ggplot(aes(x = free.sulfur.dioxide), data = ww) +
+  geom_histogram(binwidth = 5)
+
+pu8 <- ggplot(aes(x = total.sulfur.dioxide), data = ww) +
+  geom_histogram(binwidth = 10)
+
+pu9 <- ggplot(aes(x = density), data = ww) +
+  geom_histogram(binwidth = .0005)
+
+pu10 <- ggplot(aes(x = pH), data = ww) +
+  geom_histogram(binwidth = .05)
+
+pu11 <- ggplot(aes(x = sulphates), data = ww) +
+  geom_histogram(binwidth = .01)
+
+pu12 <- ggplot(aes(x = alcohol), data = ww) +
+  geom_histogram(binwidth = .5) +
+  scale_x_continuous(breaks = seq(7, 15, 1))
+
+pu13 <- ggplot(aes(x = quality.ordfactor), data = ww) +
+  geom_bar()
+
+grid.arrange(pu2, pu3, pu4, pu5, pu6, pu7, 
+             pu8, pu9, pu10, pu11, pu12, pu13, ncol = 3)
+
+str(ww[, c(1:13)])
+summary(ww[, c(1:13)])
+```
+
+I selected free sulfur dioxide as my main feature of interest. The lowest level
+of free sulfur dioxide in the sample is 2.00 mg / dm^3 and the highest is 289.00 
+mg / dm^3. The median is 34 mg / dm^3 and three quarters of the wines have a free sulfur dioxide level less than or equal to 46.00 mg / dm^3.  
+
+***
+
+###Main Univariate Plots
+```{r echo=FALSE, warning=FALSE, Univariate_Plots}
+#free sulfur dioxide
+ggplot(aes(x = free.sulfur.dioxide), data = ww) +
+  geom_histogram(binwidth = 5) +
+  scale_x_continuous(breaks = seq(0, 300, 50))
+
+#free sulfur dioxide, close up
+ggplot(aes(x = free.sulfur.dioxide), data = ww) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  coord_cartesian(xlim = c(0, 100))
+
+summary(ww$free.sulfur.dioxide)
+```
+
+There are `r count(subset(ww, ww$free.sulfur.dioxide >= 50))` observations
+with free sulfur dioxide levels equal to or greater than 50 mg / dm^3
+and `r count(subset(ww, ww$free.sulfur.dioxide < 50))` observations
+with levels below 50. Fifty mg / dm^3 is supposedly the level at which free
+sulfur dioxide becomes noticeable in the smell and taste of the wine.
+
+```{r echo=FALSE, warning=FALSE}
+#bar graph of quality
+ggplot(aes(x = quality.ordfactor), data = ww) +
+  geom_bar()
+
+#cumulative graph of quality
+wine_quality <- ww$quality
+breaks <- seq(3, 9, 1)
+
+wine_quality.cut <- cut(wine_quality, breaks, right = FALSE)
+wine_quality.freq <- table(wine_quality.cut)
+cumfreq0 <- c(0, cumsum(wine_quality.freq))
+
+plot(breaks, cumfreq0, xlab = "quality", ylab = "cumulative frequency") +
+  lines(breaks, cumfreq0)
+
+table(ww$quality)
+```
+
+There are very few wines with with the worst scores (3 and 4)
+and very few wines with the best scores (8 and 9). Most 
+of the wines have a "medium" score of 5, 6, or 7. 
+
+```{r echo=FALSE, warning=FALSE}
+#total SO2
+ggplot(aes(x = total.sulfur.dioxide), data = ww) +
+  geom_histogram(binwidth = 10)
+
+#total SO2, close up
+ggplot(aes(x = total.sulfur.dioxide), data = ww) +
+  geom_histogram(binwidth = 4) +
+  coord_cartesian(xlim = c(0, 280))
+
+#sulphates
+ggplot(aes(x = sulphates), data = ww) +
+  geom_histogram(binwidth = .01) +
+  scale_x_continuous(breaks = seq(0, 2, .05), limits = c(0.2, 1.1)) +
+  scale_y_continuous(breaks = seq(0, 250, 10))
+
+#pH
+ggplot(aes(x = pH), data = ww) + geom_histogram(binwidth = .025)
+```
+
+These graphs show total SO2, sulphates and pH - variables, that at this point, I expect to have the most influence on free sulfur dioxide levels.
+
+Total SO2 and Sulphate should contribute to free SO2 directly and in theory, all else being equal the more acidic a solution is the 
+more the chemical equilibrium between free and bound sulfur dioxide
+is pushed to the unbound free form.
+
+```{r echo=FALSE, warning=FALSE}
+#resdiual sugar
+ggplot(aes(x = residual.sugar), data = ww) + geom_histogram(binwidth = 1)
+
+#residual sugar, dotplot
+ggplot(aes(residual.sugar), data = subset(ww, ww$residual.sugar > 20)) +
+  geom_dotplot()
+```
+
+The vast majority of wines have residual sugar levels less than 20 g / dm^3m. This dot plot of wines with residual sugar greater than 20 g / dm^3 shows the exact location and value of the highest data points.
+
+```{r echo=FALSE, warning=FALSE}
+#residual sugar, close up
+ggplot(aes(x = residual.sugar), data = ww) +
+  geom_histogram(binwidth = .5) +
+  scale_x_continuous(limits = c(0, 20))
+
+#residual sugar, very close up
+ggplot(aes(x = residual.sugar), data = ww) +
+  geom_histogram(binwidth = .1) +
+  scale_x_continuous(limits = c(0, 5))
+
+summary(ww$residual.sugar)
+```
+
+Having the opposite effect from acidity, the more sugar molecules that
+there are in a solution the more the sulfur dioxide (and related ions)
+bind with the sugar molecules and push the chemical equilibrium toward
+the bound form.
+
+```{r echo=FALSE, warning=FALSE}
+#alcohol
+ggplot(aes(x = alcohol), data = ww) +
+  geom_histogram(binwidth = .1) +
+  scale_x_continuous(breaks = seq(7, 15, .5), limits = c(7.5, 15))
+```
+
+The fermentation process converts sugar to alcohol so we should see a general inverse relationship between the amount of sugar and alcohol, but the wines
+will start off and retain differents amount of sugar depending on the grapes and what flavors the vitner is trying to achieve.
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+The dataset is long format (or tidy format) data with 4898 
+observations of 13 variables. Eleven of the variables are 
+quantitative measurements of a chemical or physical property,
+one variable is a subjective labeling of taste quality and 
+the final variable is an explicit observation id.
+
+### What is/are the main feature(s) of interest in your dataset?
+The main feature of interest is free sulfur dioxide.
+Specifically, I'd like to know what is affecting both the absolute
+levels and the proportion of unbound or free sulfur dioxide in a wine.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+The main feature of interest is free sulfur dioxide, but that compound
+exists in a complicated equilibrium with total sulfur dioxide, 
+sulphates, pH levels, and other molecules present in the wine 
+like residual sugars, acetelaldehyde, and phenols. I am also interested in
+the relationship between quality and free/total sulfur dioxide.
+
+### Did you create any new variables from existing variables in the dataset?
+Yes, I created five; *quality.ordfactor* (which is quality transformed 
+into an ordered factor), *SO2.portion.free* (which is free SO2 divided 
+by total SO2), *pH.bucket* (pH cut into 8 unequal buckets), 
+*residual.sugar.bucket* (variously cut residual.sugar) and 
+*quality.bucket* (quality cut into 3 buckets to approximate low, 
+medium, and high quality). 
+
+I also created two new dataframes (*ww.high.sugar* and *ww.low.sugar*) by
+splitting the data into those wines with a sugar above and below the 
+median value of 5.2 g / dm^3.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+The distribution of most (not all) of the variables was approximately to somewhat normally distributed with a fairly consistent trend for the data to be skewed to the right to some degree. Residual sugar was very heavily skewed to the right. At this point I did not transform any of the data.
+
+# Bivariate Plots Section
+```{r echo=FALSE, warning = FALSE, Bivariate_Plots}
+#correlation table
+cor(ww[, c(1:13)])
+
+####scatterplot matrix###
+theme_set(theme_minimal(10))
+set.seed(1845)
+ww_subset <- ww[, c(2:13)]
+##must remove subset and plot full results in final version
+ggpairs(ww_subset, axisLabels = 'internal')
+```
+
+Looking at the free.sulfur.dioxide results from the correlation table
+I noted the linear correlations with residual.sugar (.299), 
+total.sulfur.dioxide (.616), density (.294) and alcohol (-.250) [values rounded].
+
+I am surprised there is not a linear relationship between sulphates and
+free sulfur dioxide as the data set text file said that sulphates can 
+contribute to free SO2 levels. At this point I am thinking that maybe 
+the relationsip is non-linear or a pattern might emerge if other 
+(yet unknown) variables are accounted for. But, then again *could* means
+sometimes won't, so we will see.
+
+I also initially expected to see a stronger relationship between 
+free.sulfur.dioxide and pH (-.001), but I think this was probably
+short sided considering the logaritmic nature of pH. 
+
+```{r echo=FALSE, warning = FALSE}
+#pH
+ggplot(aes(x = pH, y = free.sulfur.dioxide), data = ww) +
+  geom_point(position = "jitter", alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  coord_cartesian(ylim = c(0,100)) + geom_smooth() +
+  scale_x_continuous(breaks = seq(2.6, 4.0, .1 ))
+
+#pH converted to Hydrogen Ions
+ggplot(aes(x = 10**-pH, y = free.sulfur.dioxide), data = ww) +
+  geom_point(position = "jitter", alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  coord_cartesian(ylim = c(0, 100)) + geom_smooth() +
+  scale_x_continuous(breaks = seq(0.0, 0.002, 0.00025))
+
+cor.test(ww$free.sulfur.dioxide, (10**(ww$pH)) )
+```
+
+A sort of dip or wave appears in the conditional means of the data 
+in both pH and after transforming pH into the linearly scaled count
+of hydrogen ions.It is not clear to me what this dip might mean, possibly 
+it's a function of the different types of white wines and the flavors the 
+vitners are trying to produce, or maybe it's noise. Maybe the cause will
+become more clear after looking at more variables. Next I will look 
+at the variables that displayed at least some sort of linear relationship 
+with free sulfur dioxide.
+
+Also: The horizontal red line at 50 mg / dm^3 free.sulfur.dioxide 
+is meant to flag where (according to the data set text file) the taste and smell 
+of free sulfur dioxide becomes apparent.
+
+```{r echo=FALSE, warning = FALSE} 
+#residual.sugar to free SO2
+ggplot(aes(x = residual.sugar, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_hline(yintercept = 50, color="red", alpha = 1/2) +
+  coord_cartesian(xlim = c(0, 40), ylim = c(0, 150)) +
+  geom_smooth() +
+  scale_x_continuous(breaks = seq(0, 40, 2))
+
+#residual.sugar to free SO2, low values
+ggplot(aes(x = residual.sugar, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2, position = "jitter") +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  coord_cartesian(xlim = c(0, 10)) + geom_smooth()
+
+#residual.sugar to free SO2, high values values
+ggplot(aes(x = residual.sugar, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2, position = "jitter") +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  scale_x_continuous(limits = c(5.2, 40)) + geom_smooth()
+
+summary(ww$residual.sugar)
+```
+
+The first graph of residual sugar and free sulfur dioxide
+shows what looks like a weak positive linear correlation, 
+but it also show a thick band of overplotting where about 
+half of the wines have a residual sugar count of less 
+than 5 g / dm^3 or so.
+
+In the second graph I zoomed in on the lower values of 
+residual sugar to alleviate the overplotting. 
+
+In the third graph I only plotted the top half of the 
+residual.sugar values, just to do it. It appeared that 
+the correlation was stronger between free sulfur dioxide 
+and the higher than median sugar values. I created two 
+data frames seperating the sugar values above and below
+the median (5.2 g / dm^3) and ran a calculation for pearsons r. 
+The results below. 
+ 
+```{r echo=FALSE, warning = FALSE} 
+cor.test(ww.low.sugar$residual.sugar, ww.low.sugar$free.sulfur.dioxide)
+cor.test(ww.high.sugar$residual.sugar, ww.high.sugar$free.sulfur.dioxide)
+cor.test(ww$residual.sugar, ww$free.sulfur.dioxide)
+```
+
+Thinking that the very high sugar wine values in the ww$high.sugar results
+might be lowering the correlation coefficient for the bulk of the data
+I also calculated Pearson's r for residual values above 5.2 and below 25 g / dm^3
+and got an r of 0.14975. [table not shown]
+
+```{r echo=FALSE, warning = FALSE} 
+#residual.sugar to total SO2
+ggplot(aes(x = residual.sugar, y = total.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) + geom_smooth()
+```
+
+The general trend up is expected from the correlation coefficient, but the
+stair step pattern is interesting and I will have to come back to that
+to investigate further in multivariate analysis.
+
+```{r echo=FALSE, warning = FALSE} 
+#total SO2 to free SO2 scatterplot
+ggplot(aes(x = total.sulfur.dioxide, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) 
+
+#total SO2 to free SO2 scatterplot, close up
+ggplot(aes(x = total.sulfur.dioxide, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  geom_smooth() +
+  coord_cartesian(xlim = c(0, 300), ylim = c(0, 100))
+```
+
+These plots look pretty much as expected considering
+the correlation table's results.
+
+```{r echo=FALSE, warning = FALSE} 
+#density to free SO2 scatterplot
+ggplot(aes(x = density, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2)
+
+#density to free SO2 scatterplot
+ggplot(aes(x = density, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  coord_cartesian(xlim = c(.98, 1.005), ylim = c(0, 100)) +
+  geom_smooth()
+```
+
+There seems to be an interesting shift up in the data around
+.994-.995 g / cm^3 density. To describe it I would say it 
+almost looks like a transorm fault between two tectonic plates. 
+
+If I had to guess I would say the relationship in general is being driven 
+by the residual sugars / alcohol complex, with lower residual sugars 
+lowering the density and also the amount of bound sulfur dioxide related
+ions. But at this point though I don't know why the shift appears the way 
+it does instead of more gentle and linear slope.
+
+```{r echo=FALSE, warning = FALSE}
+#alcohol to free SO2 scatterplot
+ggplot(aes(x = alcohol, y = free.sulfur.dioxide), data = ww) +
+  geom_point(position = "jitter", alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2)
+
+#alcohol to free SO2 scatterplot
+ggplot(aes(x = alcohol, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  geom_smooth()
+```
+
+There's a slight trend for the free sulfur dioxide levels to 
+go down as alcohol levels rise. My first thought was this was at least
+partially caused by the tendency for free SO2 levels to decrease when 
+surrounded by higher levels of sugar molecules. And in turn the amount 
+of sugar that remains in solution is inversely related to the amount 
+that is converted to alcohol by the fermentation process. 
+
+```{r echo=FALSE, warning = FALSE}
+#alcohol vs. residual sugar
+ggplot(aes(x = alcohol, y = residual.sugar), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_smooth()
+
+#correlation of alcohol to residual.sugar
+cor(ww$alcohol, ww$residual.sugar)
+
+#alcohol and residual.sugar scatterplot
+#with conditional mean and smoother
+ggplot(aes(x = residual.sugar, y = alcohol), data = ww) +
+  geom_point(alpha = 1/3, color = "red") +
+  coord_cartesian(xlim = c(0, 25) ) +
+  geom_line(stat = "summary", fun.y = mean, alpha = 1/5, color = "black" ) +
+  geom_smooth()
+
+#alcohol and residual.sugar scatterplot 
+#with conditional mean and smoother, close up
+ggplot(aes(x = residual.sugar, y = alcohol), data = ww) +
+  geom_point(alpha = 1/3, color = "red") +
+  coord_cartesian(xlim=c(0, 5) ) +
+  geom_line(stat = "summary", fun.y = mean, alpha = 1/5, color = "black" ) +
+  geom_smooth()
+```
+
+These graphs show the general inverse relationship between alcohol
+and residual sugar. What was interesting to me was the initial rise in 
+alcohol content in the very lowest sugar wines.
+
+Knowning know that there would be a thick band of overplotting at
+residual sugars around 5, I decided to flip the graph to get 
+a better look at the scatterplot between alcohol and residual
+sugars. 
+
+```{r echo=FALSE, warning = FALSE}
+#density and residual.sugar scatterplot with conditional mean and smoother
+ggplot(aes(x = residual.sugar, y = density), data = ww) +
+  geom_point(alpha = 1/3, color = "red") +
+  geom_line(stat = "summary", fun.y = mean, alpha = 1/5, color = "black" ) +
+  geom_smooth()
+
+#density and residual.sugar scatterplot with conditional 
+#mean and smoother, close up
+ggplot(aes(x = residual.sugar, y = density), data = ww) +
+  geom_point(alpha = 1/10, color = "red") +
+  geom_line(stat = "summary", fun.y = mean, alpha = 1/5, color = "black" ) +
+  geom_smooth() +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0, 25), ylim = c(.985, 1.01) )
+
+#sulphates to free SO2 scatterplot
+ggplot(aes(x = sulphates, y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/5, position = "jitter") +
+  geom_hline(yintercept = 50, color = "red", alpha = 1/2) +
+  geom_smooth()
+
+#correlation of sulphates to free SO2
+cor.test(ww$sulphates, ww$free.sulfur.dioxide)
+```
+
+Taking a closer look at sulphates and free sulfur dioxide
+then the scatterplot matrix could provide it's still not 
+apparent to me that there is any sort of real relationship 
+between these two variables. We'll see if anything shows 
+up in multivariate analysis. 
+
+```{r echo=FALSE, warning = FALSE}
+#SO2 portion free bargraph
+ggplot(aes(x = SO2.portion.free), data = ww) +
+  geom_bar(binwidth = .01)
+
+summary(ww$SO2.portion.free)
+```
+
+The variable SO2.portion.free was calculated as
+free sulfur dioxide / total sulfur dioxide.
+
+```{r echo=FALSE, warning = FALSE}
+#SO2.portion.free v. free SO2
+ggplot(aes(x = free.sulfur.dioxide , y = SO2.portion.free), data = ww) +
+  geom_point(alpha = 1/2)
+
+#SO2.portion.free v. free SO2, close up
+ggplot(aes(x = free.sulfur.dioxide , y = SO2.portion.free), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_smooth() +
+  coord_cartesian(xlim = c(0, 100))
+
+#linear correlation
+cor.test(ww$free.sulfur.dioxide, ww$SO2.portion.free)
+```
+
+These graphs and linear correlation table show the rise in the proportion of 
+unbound SO2 as absolute levels of free SO2 rise. (I tentatively assume the
+total SO2 is also rising in tandem.) Calculating the coefficient
+of determination as r^2 = .546, it looks like half of the change
+in SO2.portion.free can be explained by the rise in free SO2 levels.
+
+```{r echo=FALSE, warning = FALSE}
+#total SO2 v. SO2.portion.free
+ggplot(aes(x = total.sulfur.dioxide, y = SO2.portion.free), data = ww) +
+  geom_point(alpha = 1/2)
+```
+
+Unfortunately, there is overplotting at the size the graph is
+rendered in the knitted HTML file, but when enlarged there 
+are distinct curivilinear trends inside of the scatterplot.
+The curves can be seen most clearly in the lower left of 
+the graph. I'm not sure if this is the influence of another
+variable or if it's an artifact introduced by graphing a
+porportion against one of it's constituent parts.
+
+```{r echo=FALSE, warning = FALSE}
+#residual sugar  v. free sulfur dioxide
+ggplot(aes(x = residual.sugar , y = free.sulfur.dioxide), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_smooth()
+
+#residual sugar  v. SO2.portion.free
+ggplot(aes(x = residual.sugar , y = SO2.portion.free), data = ww) +
+  geom_point(alpha = 1/2) +
+  geom_smooth()
+
+cor.test(ww$residual.sugar, ww$SO2.portion.free)
+```
+
+While there was a small relationship between higher levels of
+residual sugar and higher levels of free sulfur dioxide 
+(which is the opposite of what I expected to see as sulfur 
+dioxide related ions will bind with sugar molecules), we 
+can see that that there may or may not be a real relationship between 
+residual sugar and the portion of unbound SO2. 
+
+Considering these facts together what I think this means is that 
+the higher sugar wines, having more sugar (and probably less alcohol as well), 
+need higher levels of sulfur dioxide in general to protect
+against oxidation, microbial growth, etc. I think it is 
+these higher levels of SO2 that are driving the 
+positive residual.sugar to free sulfur 
+dioxide relationship.
+
+```{r echo=FALSE, warning = FALSE}
+
+#density v. SO2.portion.free
+ggplot(aes(x = density , y = SO2.portion.free), data = ww) +
+  geom_point(alpha = 1/5) +
+  geom_smooth() +
+  coord_cartesian(xlim = c(0.985, 1.005))
+
+#sulphates v. SO2.portion.free
+ggplot(aes(x = sulphates , y = SO2.portion.free), data = ww) +
+  geom_point(position = 'jitter' , alpha = 1/2)
+
+#alcohol v. SO2.portion.free
+ggplot(aes(x = alcohol , y = SO2.portion.free), data = ww) +
+  geom_point(position = "jitter", alpha = 1/2)
+
+```
+
+From the preceeding three graphs I gleaned nothing.
+
+```{r echo=FALSE, warning = FALSE}
+#free SO2 to quality boxplot
+ggplot(aes(x = quality.ordfactor, y = free.sulfur.dioxide), data = ww) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape = 4)
+```
+
+What most strikes me from these boxplots is that in no
+quality bracket does the 3rd quartile extend past the
+threshold of 50 mg / dm^3 free sulfur dioxide.
+
+```{r echo=FALSE, warning = FALSE}
+#total SO2 to quality.ordfactor boxplot
+ggplot(aes(x = quality.ordfactor, y = total.sulfur.dioxide), data = ww) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape = 4)
+```
+
+It looks like the higher the quality of the wine the smaller the variability
+in total SO2 levels.
+
+```{r echo=FALSE, warning = FALSE}
+#SO2.portion.free vs quality
+ggplot(aes(x = quality.ordfactor, y = SO2.portion.free), data = ww) +
+  geom_boxplot() +
+  stat_summary(fun.y = mean, geom = "point", shape = 4)
+
+```
+
+And that the lowest quality of wines tend to have less of their SO2 ubound.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+In any given wine, increased residual sugars should decrease the amount
+of free SO2 in relation to total SO2 as the sulfur dioxide and related
+ions bind to the sugars. What was interesting was that the absolute 
+levels of free SO2 rose in a stair step like pattern with increased 
+levels of residual sugars. The positive trend makes some intuitive sense
+under the hypothesis that residual sugars are prone to oxidize or otherwise 
+spoil and you would need more total free SO2 to act as a preservative.
+So the general rise is somewhat intuitive, but the sharp rise 
+followed by plateau that can been seen in the conditional 
+means is more perplexing. 
+
+I have no idea what is causing this pattern. With the exception of 
+the wines with sugars below 2 g / dm^3 the sharp rises tend to occur 
+at the least populated levels of residual sugar. It's a bit 
+of a subjective call, but there seem to be distinctive bands
+of small intervals where many wines share a close level of 
+residual sugar. To my eye there are bands around 4-5, 7-8,
+and 11-15 and the free sulfur dioxide levels also plateau 
+near these levels.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+An interesting relationship was the one observed between
+residual sugars and alcohol. In general the higher the 
+alcohol the lower the sugar, which makes sense, but 
+the lowest sugar wines (those under 3 g / dm^3) display 
+the opposite effect. Why this is the case, I don't know.
+Maybe a little sugar is needed to mellow out the "hotness"
+of the alcohol? Maybe it's just this data, I don't know, 
+but I would love to find out.
+
+### What was the strongest relationship you found?
+
+Strictly speaking residual sugar and density had 
+the strongest identifiable relationship. The inverse
+relationship between alcohol and density was the 
+second strongest.
+
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, warning=FALSE, Multivariate_Plots}
+#residual sugar vs free SO2, facet wrapped by binned pH
+ggplot(aes(y = free.sulfur.dioxide, x = residual.sugar), data = ww) +
+  geom_point(alpha = 1/2) +
+  coord_cartesian(xlim = c(0, 20), ylim = c(0, 100)) +
+  facet_wrap(~pH.bucket) +
+  geom_smooth()
+```
+
+This is residual sugar vs. absolute levels of free sulfur dioxide,
+facet wrapped by pH. There's a little funkiness, but across the
+binned pH levels the general tendency for free SO2 levels to rise
+as resdiual sugars does can still be seen at most pH levels. 
+
+Note that because there were few data points
+in the most acidic and basic pH bins I collapsed 2.8 and 2.9
+into one bin and 3.5, 3.6, 3.7 and 3.8 into one bin. 
+
+```{r echo=FALSE, warning=FALSE}
+#residual sugar vs SO2 portion free, facet wrapped by binned pH
+ggplot(aes(y = SO2.portion.free, x = residual.sugar), data = ww) +
+  geom_point(alpha = 1/2) +
+  facet_wrap(~pH.bucket) +
+  coord_cartesian(xlim = c(0, 20) ) +
+  geom_smooth()
+```
+
+This is residual sugar vs SO2.portion.free facet wrapped by pH.
+
+```{r echo=FALSE, warning=FALSE}
+#pH influence on free SO2 facet wrapped by residual.sugar
+ggplot(aes(y = SO2.portion.free, x = pH), data = ww) +
+  geom_point(alpha = 1/2) +
+  facet_wrap(~residual.sugar.bucket1) +
+  geom_smooth()
+```
+
+This is SO2 portion free vs pH facet wrapped by residual sugars in
+the range (4,12], with a step of 1. 
+
+The dataset text file said that lower pH levels would drive
+the dynamic equilibrium between free SO2 and bound towards 
+free gas molecules. Taking the dataset as a whole I could 
+not observe this relationship. But I thought it possible 
+that the forcing effect of residual sugar was much stronger
+than pH and if residual sugars were controlled for there 
+might be an observable relationship between pH and the 
+portion of free SO2.
+
+First I cut the data into quartiles, but there was no 
+observable trend and that method of division seemed very forced or
+artificial for what I wanted to look at. 
+
+Second using what I could see from 
+the bivariate plot of residual sugar to free sulfur 
+dioxide I tried an area with a high increase between 
+residual sugar to free sulfur dioxide (5- 7 g / dm^3 
+sugar with .25 length intervals), then I tried an area 
+where free SO2 stayed the same as residual sugar increased
+(8 - 10 g/dm^3 sugar with .5 length intervals). Neither of 
+those graphs showed a consistent inverse relationship between
+pH and SO2 portion free. 
+
+I also tried transforming pH into 
+hydrogen ions, but still no trend was apparent.
+
+```{r echo=FALSE }
+#pH influence on free SO2 facet wrapped by residual.sugar
+ggplot(aes(y = SO2.portion.free, x = pH), data = ww) +
+  geom_point(alpha = 1/2) +
+  facet_wrap(~residual.sugar.bucket2) +
+  scale_x_reverse() +
+  geom_smooth()
+
+#pH influence on free SO2 facet wrapped by residual.sugar
+ggplot(aes(y = SO2.portion.free, x = pH), data = ww) +
+  geom_point(alpha = 1/2) +
+  facet_wrap(~residual.sugar.bucket1) +
+  scale_x_reverse() +
+  geom_smooth()
+
+```
+
+These last two graphs are similar to the one that preceed them, but the
+x axis has been reversed so acidity increases from left to right. It's 
+hard to say that the proportion of free SO2 increases as acidity 
+increases, but that can certainly be seen at some of the residual 
+sugar levels.
+
+```{r echo=FALSE }
+#alcohol and free SO2 facet wrapped by binned pH
+ggplot(aes(y = free.sulfur.dioxide, x = alcohol), data = ww) +
+  geom_point(alpha = 1/2) +
+  facet_wrap(~pH.bucket) +
+  geom_smooth()
+
+#total SO2 and free SO2 facet wrapped by binned pH
+ggplot(aes(y = free.sulfur.dioxide, x = total.sulfur.dioxide,
+           color = quality.ordfactor), data = ww) +
+  geom_point(alpha = 1/2) + 
+  facet_wrap(~pH.bucket) +
+  scale_color_brewer(palette = "Spectral")
+
+```
+
+This graph turned out to be very busy and hard to interpret, 
+but I did get the sense that the lower quality wines tended to 
+be on the lower right area of the scatterplot. From this I 
+wanted to look into how the lower quality wines might have 
+lower ratios of free SO2 to total SO2. 
+
+```{r echo=FALSE }
+#free SO2 to total SO2 by colered by quality
+ggplot(aes(y = free.sulfur.dioxide, x = total.sulfur.dioxide, 
+           color = quality.ordfactor), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "RdBu") +
+  coord_cartesian(xlim = c(0, 300), ylim = c(0, 100))
+
+```
+
+This was my first attempt. I could see that the lower quality 
+wines had on average less free SO2 per total SO2 levels, but 
+the graph was still a little busy with lots of overplotting 
+and grayish reds and blues on a gray background.
+
+```{r echo=FALSE }
+#total SO2 and free SO2 facet colored by quality
+ggplot(aes(y = free.sulfur.dioxide, x = total.sulfur.dioxide, 
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1/2) +
+  scale_color_brewer(palette = "RdYlBu") +
+  coord_cartesian(xlim = c(0, 300), ylim = c(0, 100))
+```
+
+In this graph it can be seen that the trend for lower quality
+wines to have lower free to total SO2 ratio does seem to exist.
+The problem of the first graph, which is somewhat ameliorated 
+in this graph, is that it was hard to see what was happening 
+with the "middle" wines not at the extremes of the scale. 
+
+```{r echo=FALSE }
+#SO2 portion free to free SO2 colored by binned quality
+ggplot(aes(y = free.sulfur.dioxide, x = SO2.portion.free, 
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "RdYlBu") +
+  coord_cartesian(ylim = c(0, 100))
+
+#SO2 portion free to total SO2 colored by binned quality
+ggplot(aes(y = total.sulfur.dioxide, x = SO2.portion.free, 
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "RdYlBu") 
+```
+
+For any given level of total SO2 the high quality wines tend to have
+higher levels of free SO2. This means less SO2 is bound to "stuff".
+The binding might be driven by pH, but given the results we have seen
+so far I would guess this high quality - high free SO2 relationship
+is being driven by residual.sugar/alcohol. There is a strong identifiable
+trend for higher alcohol wines to be rated higher and high alcohol wines
+tend to have lower sugar, and lower sugar means higher free SO2.
+
+```{r echo=FALSE }
+#SO2 portion free to total SO2 colored by binned pH
+ggplot(aes(y = total.sulfur.dioxide, x = SO2.portion.free, 
+           color = pH.bucket), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "PuBu") 
+```
+
+This was just a shot in the dark to see if my pH had any relationship with
+the curvilinear lines in SO2.portion.free vs total SO2. The reason for these
+lines still eludes me.
+
+```{r echo=FALSE }
+#residual sugar to alcohol colored by quality.bucket
+ggplot(aes(y = residual.sugar, x = alcohol, 
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "RdYlBu")
+
+#residual sugar to alcohol colored by quality.bucket
+ggplot(aes(y = SO2.portion.free, x = alcohol,
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "RdYlBu")
+
+```
+
+These graphs show how residual sugar and alcohol interact with each other, and
+alcohol plots against SO2.portion.free and binned quality.
+
+```{r echo=FALSE, warning = FALSE }
+#alcohol to density colored by quality.bucket
+ggplot(aes(y = alcohol, x = density, 
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1) +
+  scale_color_brewer(palette = "RdYlBu")
+```
+
+Another look at the relationship between alcohol and density. The higher the alcohol concentration the lower the density. 
+
+```{r echo=FALSE, warning = FALSE }
+#histogram
+ggplot(aes(x = alcohol, color = quality.bucket), data = ww) +
+  geom_histogram()
+```
+
+This graph mainly shows two things. One, is that the lower alcohol wines tend
+to be rated more poorly. And two, this dataset has relatively more low alcohol
+wines than high alcohol wines.
+
+```{r echo=FALSE, warning = FALSE }
+#histogram
+ggplot(aes(x = alcohol, color = quality.bucket), data = ww) +
+  geom_histogram() +
+  facet_wrap(~pH.bucket)
+```
+
+With these binned and colored histograms I was looking to see if
+there were any obvious effects of pH on the preceeding histogram. I did 
+not seeing anything that particulary caught my eye.
+
+```{r echo=FALSE, warning = FALSE }
+#histogram
+ggplot(aes(x = SO2.portion.free, color = quality.bucket), data = ww) +
+  geom_histogram() +
+  facet_wrap(~pH.bucket)
+
+#histogram
+ggplot(aes(x = residual.sugar, color = quality.bucket), data = ww) +
+  geom_histogram() +
+  facet_wrap(~pH.bucket)
+```
+
+These last two graphs were looking for any large scale effects pH
+might have on SO2.portion.free or residual.sugar, but again I did not
+glean any new information.
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+A particulary interesting graph to me is total sulfur dioxide vs.
+free sulfur dioxide colored by binned quality. The big clear trend 
+is that the higher quality wines have higher proportions of free SO2.
+But interestingly the wines with the lowest levels of both free and 
+total sulfur dioxide are almost uniformly low rated wines. Also 
+the wines with the highest free and total sulfur dioxide are low rated. 
+
+In that graph it can be seen that above 50 mg / dm^3, which is 
+supposedly the threshold at which you can detect the gas in the smell 
+and taste of the wine there seems to be no bias for the wines to be 
+either high, medium, or low quality. An interesting result for a 
+gas reported to have a "pungent, rotting" smell.
+
+### Were there any interesting or surprising interactions between features?
+
+Interesting in the sense that the trend is so clear, was the graph
+for residual sugar to alcohol colored by quality. Also I was 
+surprised that I could not find a clear consistent relationship between increased 
+acidity and the proportion of free SO2 even after controlling for
+residual sugar and alcohol.
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+#total SO2 to free SO2 scatterplot, colored by binned binned residual sugar
+ggplot(aes(x = total.sulfur.dioxide, y = free.sulfur.dioxide,
+           color = residual.sugar.bucket.full), data = ww) +
+  geom_point(alpha = 1, position = "jitter") +
+  geom_smooth(aes(group = 1)) +
+  geom_hline(yintercept = 50, color="red", alpha = 1/2) +
+  coord_cartesian(xlim = c(0, 300), ylim = c(0, 100)) +
+  ggtitle("Total SO2 to Free SO2 Colored By Residual Sugar") +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_x_continuous("total sulfur dioxide (mg / dm^3)") +
+  scale_y_continuous("free sulfur dioxide (mg / dm^3)") +
+  scale_color_brewer(palette = "RdYlBu", name = "residual sugar interval\n(g/dm^3)")
+```
+
+### Description One
+
+I selected free sulfur dioxide as my main feature of interest and
+to me that left really two sets of questions. 1) What affects absolute 
+levels of free SO2 and 2) what affects the proportion that is free
+and unbound.
+
+The thing that has the most influence on absolute levels of free
+sulfur dioxide is total sulfur dioxide. And from what I can tell
+the thing that has the most effect on total sulfur dioxide is 
+residual sugars.
+
+This graph shows the relationship between total sulfur dioxide and free
+sulfur dioxide along with a line representing the smoothed conditional means.
+
+The colors (which are somewhat arbitrary and not equally binned) do show that
+total sulfur dioxide tends to rise as sugar levels do.
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+#residual.sugar to free SO2 colored by quality
+ggplot(aes(x = residual.sugar, y = free.sulfur.dioxide, 
+           color = quality.bucket), data = ww) +
+  geom_point(alpha = 1, position = "jitter") +
+  geom_smooth(color = "#FFCCFF") +
+  ggtitle("Residual Sugar and Free SO2 Levels Colored By Quality") +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_x_continuous("residual sugar (g / dm^3)") +
+  scale_y_continuous("free sulfur dioxide (mg / dm^3)") +
+  coord_cartesian(xlim = c(0,25), ylim = c(0,100)) +
+  scale_color_brewer(palette = "RdYlBu", name = "binned quality")
+```
+
+### Description Two
+
+The first graph showed that there was some relationship between residual sugar
+and free sulfur dioxide, but in a imprecise way. In a sense it acted like a 
+warning sign calling for more study. This graph shows the relationship in a 
+more meaningful way. Here we can see that free sulfur dioxide levels do
+indeed rise as residual sugars increase. Interestingly free sulfur dioxide does not rise in
+a consistent linear way, but in a stair step pattern. 
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+#ph to SO2.portion.free scatterplot plus linegraph of median
+ggplot(aes(x = pH, y = SO2.portion.free), data = ww) +
+  geom_point(alpha = 1/5, position = "jitter", color = "#66CC66") +
+  geom_line(stat = "summary", fun.y = median, color = "red") +
+  theme(plot.title = element_text(face = "bold")) +
+  ggtitle("Line Graph of Median SO2 Portion Free at Given pH, 
+          Superimposed on Scatterplot of pH and SO2 Portion Free") +
+  scale_y_continuous("Proportion of Free SO2")                                                                                                                                                                    
+```
+
+### Description Three
+
+I chose this graph, because I think it shows something very surprising. The 
+data set text file said that increased acidity would drive the dynamic 
+equilibrium of free to total SO2 towards free SO2. However, in this graph
+there is no such relationship and despite my best efforts to control for 
+things like residual sugar - a clear trend still eluded me. 
+
+
+------
+
+# Reflection
+
+This was a dataset of 4898 white wines. The main thing I was interested in was
+free sulfur dioxide. I started my analysis by looking at the raw, 
+untransformed histograms (or bar graph for quality data). The graphs for
+the most part looked approximately to somewhat normal and I quickly moved on to bivariate 
+analysis. After creating a correlation table I made note of those variables 
+that showed some linear correlation with free suflur dioxide; 
+residual.sugar (.299), total.sulfur.dioxide (.616), density (.294) and 
+alcohol (-.250) [values rounded and I arbitrarily chose a threshold of .2 for 
+my analysis]. From my background reading I also carried pH forward for 
+more analysis as it had or was supposed to have had an effect on the chemical 
+equilibrium that controls the balance between free and total SO2. 
+
+After some stumbling about I began to see
+the relationship between residual sugars, alcohol, density, total sulfur 
+dioxide and free sulfur dioxide. Residual sugar and alcohol are 
+inversely proportional to each other as during the fermentation process 
+sugar is converted to alcohol. This became very apparent after plotting 
+the conditional means of residual sugars vs alcohol for those wines with
+residual sugars less than 25 g/dm^3. Of course different wines may begin
+with different amounts of sugar to begin with, so you can't perfectly predict
+one variable from the other.
+
+Furthermore, residual sugar and alcohol act in concert with each other 
+(along with other things) to determine density. The linear relationship between residual
+sugar and density may be the clearest in the data set. There is an apparent 
+relationship between density and free sulfur dioxide, but I believe this
+to be a spurious relation driven by the connection of free sulfur dioxide to
+sugars and alcohol.
+
+The residual sugar / alcohol axis control to a large degree how much 
+total sulfur dioxide was in the wine (presumably to reduce oxidation and 
+spoilage). In general, the more sugar the more total sulfur dioxide. Finally the more
+total sulfur dioxide, the more free sulfur dioxide (correlation coefficient
+of 0.616). 
+
+I can't say for certain what affects the proportion of free sulfur 
+dioxide at any given level of total sulfur dioxide, but it is clear that
+the higher the proportion of free sulfur dioxide the higher the probability 
+that the wine was rated higher than a wine with a lower proportion of free 
+sulfur dioxide. The can be seen fairly well in plot one of the final plots
+section.
+
+One of the lingering questions I have in this data set is how to isolate
+the relationship pH has on the proportion of free sulfur dioxide. If I 
+was to analyze further I would systematically control for each variable
+to determine if it was somehow masking the effect pH concentrations should 
+be having on the proportion of free SO2. There is also a very obvious 
+shift in the scatterplot of free sulfur dioxide and density that perplexes
+me. For this shift I would like more data on the wines themselves, as I 
+think this may come from how the vitners are making the wines into
+distinct flavor profiles.
